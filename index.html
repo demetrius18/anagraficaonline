@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Clienti</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h2>Registrazione Cliente</h2>
+        <form id="clientForm">
+            <label for="nome">Nome:</label>
+            <input type="text" id="nome" required>
+
+            <label for="cognome">Cognome:</label>
+            <input type="text" id="cognome" required>
+
+            <label for="telefono">Telefono:</label>
+            <input type="tel" id="telefono" pattern="[0-9]{10}" required title="Inserisci un numero di telefono valido (10 cifre)">
+
+            <label for="piattaforma">Piattaforma:</label>
+            <select id="piattaforma" required>
+                <option value="GoldBet">GoldBet</option>
+                <option value="BetFlag">BetFlag</option>
+            </select>
+
+            <button type="submit">Registra Cliente</button>
+        </form>
+
+        <h3>Elenco Clienti</h3>
+        <table id="clientTable">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Cognome</th>
+                    <th>Telefono</th>
+                    <th>Piattaforma</th>
+                    <th>Data Registrazione</th>
+                </tr>
+            </thead>
+            <tbody id="clientTableBody"></tbody>
+        </table>
+
+        <button id="exportBtn" class="export-btn">Esporta in CSV</button>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
