@@ -34,6 +34,14 @@ input, select {
     border-radius: 4px;
 }
 
+#search {
+    width: 100%;
+    padding: 8px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+} 
+
 button {
     padding: 10px;
     background-color: #4CAF50;
