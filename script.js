@@ -55,6 +55,34 @@ function loadClients() {
     });
 }
 
+// Aggiungi un input di ricerca in index.html
+<input type="text" id="search" placeholder="Cerca cliente..." oninput="searchClients()">
+
+// Aggiungi in script.js
+function searchClients() {
+    const query = document.getElementById('search').value.toLowerCase();
+    const clients = JSON.parse(localStorage.getItem('clients')) || [];
+    const tableBody = document.getElementById('clientTableBody');
+    tableBody.innerHTML = '';
+
+    clients
+        .filter(cliente => 
+            cliente.nome.toLowerCase().includes(query) || 
+            cliente.cognome.toLowerCase().includes(query)
+        )
+        .forEach(cliente => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${cliente.nome}</td>
+                <td>${cliente.cognome}</td>
+                <td>${cliente.telefono}</td>
+                <td>${cliente.piattaforma}</td>
+                <td>${new Date(cliente.dataRegistrazione).toLocaleString()}</td>
+            `;
+            tableBody.appendChild(row);
+        });
+}
+
 // Esporta i dati in CSV
 function exportToCSV() {
     const clients = JSON.parse(localStorage.getItem('clients')) || [];
