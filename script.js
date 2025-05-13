@@ -4,19 +4,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('clientForm').addEventListener('submit', (e) => {
         e.preventDefault();
-
         const cliente = getFormData();
         cliente.dataRegistrazione = new Date().toISOString();
 
         saveClient(cliente);
         clearDraft();
-
         document.getElementById('clientForm').reset();
         loadClients();
     });
 
     document.getElementById('exportBtn').addEventListener('click', exportToCSV);
     document.getElementById('searchInput').addEventListener('input', filterClients);
+    document.getElementById('globalSearch').addEventListener('input', globalSearchClients);
+    document.getElementById('downloadAllBtn').addEventListener('click', downloadAllClientsJSON);
 
     ['nome', 'cognome', 'telefono', 'piattaforma'].forEach(id => {
         document.getElementById(id).addEventListener('input', saveDraft);
@@ -33,13 +33,13 @@ function getFormData() {
 }
 
 function saveClient(cliente) {
-    let clients = JSON.parse(localStorage.getItem('clients')) || [];
+    let clients = JSON.parse(localStorage.getItem('clientRegistry')) || [];
     clients.push(cliente);
-    localStorage.setItem('clients', JSON.stringify(clients));
+    localStorage.setItem('clientRegistry', JSON.stringify(clients));
 }
 
 function loadClients() {
-    const clients = JSON.parse(localStorage.getItem('clients')) || [];
+    const clients = JSON.parse(localStorage.getItem('clientRegistry')) || [];
     const tableBody = document.getElementById('clientTableBody');
     tableBody.innerHTML = '';
 
@@ -59,10 +59,10 @@ function loadClients() {
 }
 
 function deleteClient(index) {
-    const clients = JSON.parse(localStorage.getItem('clients')) || [];
+    const clients = JSON.parse(localStorage.getItem('clientRegistry')) || [];
     if (confirm("Sei sicuro di voler eliminare questo cliente?")) {
         clients.splice(index, 1);
-        localStorage.setItem('clients', JSON.stringify(clients));
+        localStorage.setItem('clientRegistry', JSON.stringify(clients));
         loadClients();
     }
 }
@@ -77,8 +77,34 @@ function filterClients() {
     });
 }
 
+function globalSearchClients() {
+    const query = document.getElementById('globalSearch').value.toLowerCase();
+    const clients = JSON.parse(localStorage.getItem('clientRegistry')) || [];
+    const results = clients.filter(cliente =>
+        (cliente.nome + cliente.cognome + cliente.telefono + cliente.piattaforma)
+            .toLowerCase().includes(query)
+    );
+
+    const tableBody = document.getElementById('clientTableBody');
+    tableBody.innerHTML = '';
+
+    results.forEach((cliente, index) => {
+        const row = document.createElement('tr');
+        const dataSolo = new Date(cliente.dataRegistrazione).toLocaleDateString();
+        row.innerHTML = `
+            <td>${cliente.nome}</td>
+            <td>${cliente.cognome}</td>
+            <td>${cliente.telefono}</td>
+            <td>${cliente.piattaforma}</td>
+            <td>${dataSolo}</td>
+            <td><button onclick="deleteClient(${index})">Elimina</button></td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
+
 function exportToCSV() {
-    const clients = JSON.parse(localStorage.getItem('clients')) || [];
+    const clients = JSON.parse(localStorage.getItem('clientRegistry')) || [];
     let csv = 'Nome,Cognome,Telefono,Piattaforma,Data Registrazione\n';
 
     clients.forEach(cliente => {
@@ -91,6 +117,17 @@ function exportToCSV() {
     const a = document.createElement('a');
     a.href = url;
     a.download = 'clienti.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+function downloadAllClientsJSON() {
+    const clients = JSON.parse(localStorage.getItem('clientRegistry')) || [];
+    const blob = new Blob([JSON.stringify(clients, null, 2)], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'clienti.json';
     a.click();
     window.URL.revokeObjectURL(url);
 }
