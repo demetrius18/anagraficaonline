@@ -1,67 +1,89 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Carica i clienti salvati all'avvio
     loadClients();
+    restoreDraft();
 
-    // Gestisci l'invio del form
     document.getElementById('clientForm').addEventListener('submit', (e) => {
         e.preventDefault();
 
-        const nome = document.getElementById('nome').value;
-        const cognome = document.getElementById('cognome').value;
-        const telefono = document.getElementById('telefono').value;
-        const piattaforma = document.getElementById('piattaforma').value;
-        const dataRegistrazione = new Date().toISOString();
+        const cliente = getFormData();
+        cliente.dataRegistrazione = new Date().toISOString();
 
-        // Crea oggetto cliente
-        const cliente = { nome, cognome, telefono, piattaforma, dataRegistrazione };
-
-        // Salva nel	particolari
         saveClient(cliente);
+        clearDraft();
 
-        // Resetta il form
         document.getElementById('clientForm').reset();
-
-        // Aggiorna la tabella
         loadClients();
     });
 
-    // Gestisci l'esportazione in CSV
     document.getElementById('exportBtn').addEventListener('click', exportToCSV);
+    document.getElementById('searchInput').addEventListener('input', filterClients);
+
+    ['nome', 'cognome', 'telefono', 'piattaforma'].forEach(id => {
+        document.getElementById(id).addEventListener('input', saveDraft);
+    });
 });
 
-// Salva un cliente in localStorage
+function getFormData() {
+    return {
+        nome: document.getElementById('nome').value,
+        cognome: document.getElementById('cognome').value,
+        telefono: document.getElementById('telefono').value,
+        piattaforma: document.getElementById('piattaforma').value
+    };
+}
+
 function saveClient(cliente) {
     let clients = JSON.parse(localStorage.getItem('clients')) || [];
     clients.push(cliente);
     localStorage.setItem('clients', JSON.stringify(clients));
 }
 
-// Carica i clienti e aggiorna la tabella
 function loadClients() {
     const clients = JSON.parse(localStorage.getItem('clients')) || [];
     const tableBody = document.getElementById('clientTableBody');
     tableBody.innerHTML = '';
 
-    clients.forEach(cliente => {
+    clients.forEach((cliente, index) => {
         const row = document.createElement('tr');
+        const dataSolo = new Date(cliente.dataRegistrazione).toLocaleDateString();
         row.innerHTML = `
             <td>${cliente.nome}</td>
             <td>${cliente.cognome}</td>
             <td>${cliente.telefono}</td>
             <td>${cliente.piattaforma}</td>
-            <td>${new Date(cliente.dataRegistrazione).toLocaleString()}</td>
+            <td>${dataSolo}</td>
+            <td><button onclick="deleteClient(${index})">Elimina</button></td>
         `;
         tableBody.appendChild(row);
     });
 }
 
-// Esporta i dati in CSV
+function deleteClient(index) {
+    const clients = JSON.parse(localStorage.getItem('clients')) || [];
+    if (confirm("Sei sicuro di voler eliminare questo cliente?")) {
+        clients.splice(index, 1);
+        localStorage.setItem('clients', JSON.stringify(clients));
+        loadClients();
+    }
+}
+
+function filterClients() {
+    const query = document.getElementById('searchInput').value.toLowerCase();
+    const rows = document.querySelectorAll('#clientTableBody tr');
+
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+    });
+}
+
 function exportToCSV() {
     const clients = JSON.parse(localStorage.getItem('clients')) || [];
     let csv = 'Nome,Cognome,Telefono,Piattaforma,Data Registrazione\n';
 
     clients.forEach(cliente => {
-        csv += `${cliente.nome},${cliente.cognome},${cliente.telefono},${cliente.piattaforma},${new Date(cliente.dataRegistrazione).toLocaleString()}\n`;
+        const dataSolo = new Date(cliente.dataRegistrazione).toLocaleDateString();
+        csv += `${cliente.nome},${cliente.cognome},${cliente.telefono},${cliente.piattaforma},${dataSolo}\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -71,4 +93,23 @@ function exportToCSV() {
     a.download = 'clienti.csv';
     a.click();
     window.URL.revokeObjectURL(url);
+}
+
+function saveDraft() {
+    const data = getFormData();
+    localStorage.setItem('clientFormDraft', JSON.stringify(data));
+}
+
+function restoreDraft() {
+    const draft = JSON.parse(localStorage.getItem('clientFormDraft'));
+    if (draft) {
+        document.getElementById('nome').value = draft.nome || '';
+        document.getElementById('cognome').value = draft.cognome || '';
+        document.getElementById('telefono').value = draft.telefono || '';
+        document.getElementById('piattaforma').value = draft.piattaforma || '';
+    }
+}
+
+function clearDraft() {
+    localStorage.removeItem('clientFormDraft');
 }
