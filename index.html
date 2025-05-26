@@ -1,51 +1,280 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CRM Clienti</title>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Anagrafica Clienti</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet"/>
+  <style>
+    body { background-color: #111; color: #ffd700; }
+    .form-control, .btn, .table { border-radius: 0.5rem; }
+    .table thead { background-color: #222; color: #ffd700; }
+    .table tbody tr { background-color: #1a1a1a; color: #fff; }
+    .btn-primary { background-color: #ffd700; color: #111; border: none; }
+    .btn-danger { background-color: #cc0000; border: none; }
+    .btn-success { background-color: #28a745; border: none; }
+    #fileInput { display: none; }
+    .action-buttons { white-space: nowrap; }
+    .search-section { margin-bottom: 20px; }
+  </style>
 </head>
-<body>
-    <div class="container">
-        <h2>Registrazione Cliente</h2>
-        <form id="clientForm">
-            <label for="nome">Nome:</label>
-            <input type="text" id="nome" required>
+<body class="p-3">
+  <div class="container">
+    <h1 class="text-center mb-4">Anagrafica Clienti Bologna</h1>
 
-            <label for="cognome">Cognome:</label>
-            <input type="text" id="cognome" required>
-
-            <label for="telefono">Telefono:</label>
-            <input type="tel" id="telefono" pattern="[0-9]{10}" required title="Inserisci un numero di telefono valido (10 cifre)">
-
-            <label for="piattaforma">Piattaforma:</label>
-            <select id="piattaforma" required>
-                <option value="GoldBet">GoldBet</option>
-                <option value="BetFlag">BetFlag</option>
-            </select>
-
-            <button type="submit">Registra Cliente</button>
-        </form>
-        <input type="text" id="globalSearch" placeholder="Cerca in tutti i clienti..." style="margin-bottom: 10px; width: 100%; padding: 8px;">
-        <button id="downloadAllBtn">Scarica tutti i clienti (JSON)</button>
-    
-        <h3>Elenco Clienti</h3>
-        <table id="clientTable">
-            <thead>
-                <tr>
-                    <th>Nome</th>
-                    <th>Cognome</th>
-                    <th>Telefono</th>
-                    <th>Piattaforma</th>
-                    <th>Data Registrazione</th>
-                </tr>
-            </thead>
-            <tbody id="clientTableBody"></tbody>
-        </table>
-
-        <button id="exportBtn" class="export-btn">Esporta in CSV</button>
+    <!-- Form aggiunta cliente -->
+    <div class="row g-2 mb-3">
+      <div class="col-md-2"><input type="text" id="cognome" class="form-control" placeholder="Cognome" /></div>
+      <div class="col-md-2"><input type="text" id="nome" class="form-control" placeholder="Nome" /></div>
+      <div class="col-md-2"><input type="text" id="id" class="form-control" placeholder="ID (opzionale)" /></div>
+      <div class="col-md-2"><input type="text" id="username" class="form-control" placeholder="Username" /></div>
+      <div class="col-md-2"><input type="text" id="numero" class="form-control" placeholder="Numero" /></div>
+      <div class="col-md-2">
+        <select id="piattaforma" class="form-control">
+          <option value="GoldBet">GoldBet</option>
+          <option value="BetFlag">BetFlag</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button onclick="aggiungiCliente()" class="btn btn-primary w-100">Aggiungi</button>
+      </div>
     </div>
-    <script src="script.js"></script>
+
+    <!-- Barra ricerca e pulsanti -->
+    <div class="search-section">
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="w-50 me-3">
+          <input type="text" id="ricerca" class="form-control" placeholder="Cerca cliente..." oninput="mostraClienti()" />
+        </div>
+        <div class="action-buttons">
+          <button onclick="document.getElementById('fileInput').click()" class="btn btn-success me-2">
+            <i class="bi bi-upload"></i> Importa File
+          </button>
+          <a href="/api/export" class="btn btn-primary me-2">
+            <i class="bi bi-download"></i> Esporta CSV
+          </a>
+          <a href="/api/export-xlsx" class="btn btn-primary">
+            <i class="bi bi-download"></i> Esporta Excel
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" onchange="importaFile(this.files)" />
+
+    <!-- Tabella clienti -->
+    <div class="table-responsive">
+      <table class="table table-striped table-dark table-hover">
+        <thead>
+  <tr>
+    <th onclick="ordinaPer('cognome')">Cognome ⬍</th>
+    <th onclick="ordinaPer('nome')">Nome ⬍</th>
+    <th onclick="ordinaPer('id')">ID ⬍</th>
+    <th onclick="ordinaPer('username')">Username ⬍</th>
+    <th onclick="ordinaPer('numero')">Numero ⬍</th>
+    <th onclick="ordinaPer('piattaforma')">Piattaforma ⬍</th>
+    <th onclick="ordinaPer('data')">Data</th>
+    <th>Azioni</th>
+  </tr>
+</thead>
+        <tbody id="tabella-clienti"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    let clienti = [];
+
+    document.addEventListener('DOMContentLoaded', caricaClienti);
+
+    async function caricaClienti() {
+      try {
+        const res = await fetch('/api/clienti');
+        if (!res.ok) throw new Error("Errore nel caricamento");
+        clienti = await res.json();
+        mostraClienti();
+      } catch (error) {
+        console.error("Errore:", error);
+        alert("Errore nel caricamento dei clienti");
+      }
+    }
+
+function mostraClienti() {
+  const filtro = document.getElementById('ricerca').value.toLowerCase();
+  const corpoTabella = document.getElementById('tabella-clienti');
+  corpoTabella.innerHTML = '';
+
+  const seiOre = 6 * 60 * 60 * 1000;
+  const oraAttuale = Date.now();
+
+  clienti
+    .filter(c => Object.values(c).some(val =>
+      val && val.toString().toLowerCase().includes(filtro)
+    ))
+    .forEach(c => {
+      const row = document.createElement('tr');
+      const isNuovo = c.timestamp && (oraAttuale - c.timestamp < seiOre);
+
+      if (isNuovo) {
+        row.style.backgroundColor = '#d1e7dd'; // sfondo verde chiaro
+        row.style.color = '#000'; // testo scuro
+      }
+
+      row.innerHTML = `
+        <td contenteditable onblur="modificaCampo('${c.id}', 'cognome', this.innerText)">
+          ${c.cognome || ''}
+        </td>
+        <td contenteditable onblur="modificaCampo('${c.id}', 'nome', this.innerText)">
+          ${c.nome || ''} ${isNuovo ? '<span class="badge bg-success ms-1">NUOVO</span>' : ''}
+        </td>
+        <td contenteditable onblur="modificaCampo('${c.id}', 'nome', this.innerText)">
+          ${c.id || ''}
+        </td>
+        <td contenteditable onblur="modificaCampo('${c.id}', 'username', this.innerText)">
+          ${c.username || ''}
+        </td>
+        <td contenteditable onblur="modificaCampo('${c.id}', 'numero', this.innerText)">
+          ${c.numero || ''}
+        </td>
+        <td contenteditable onblur="modificaCampo('${c.id}', 'piattaforma', this.innerText)">
+          ${c.piattaforma || ''}
+        </td>
+        <td>${c.data || ''}</td>
+        <td>
+          <button class="btn btn-danger btn-sm" onclick="eliminaCliente('${c.id}')">Elimina</button>
+        </td>
+      `;
+      corpoTabella.appendChild(row);
+    });
+}
+
+
+
+    async function aggiungiCliente() {
+      const nuovo = {
+        cognome: document.getElementById('cognome').value.trim(),
+        nome: document.getElementById('nome').value.trim(),
+        id: document.getElementById('id').value.trim() || Date.now().toString(),
+        username: document.getElementById('username').value.trim(),
+        numero: document.getElementById('numero').value.trim(),
+        piattaforma: document.getElementById('piattaforma').value
+      };
+
+      if (!nuovo.cognome || !nuovo.nome || !nuovo.numero) {
+        return alert("Compila tutti i campi obbligatori");
+      }
+
+      try {
+        const res = await fetch('/api/clienti', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(nuovo)
+        });
+
+        const result = await res.json();
+        if (result.success) {
+          document.getElementById('cognome').value = '';
+          document.getElementById('nome').value = '';
+          document.getElementById('id').value = '';
+          document.getElementById('username').value = '';
+          document.getElementById('numero').value = '';
+          clienti.unshift(result.cliente);
+          mostraClienti();
+        } else {
+          alert(result.message || "Errore nel salvataggio");
+        }
+      } catch (error) {
+        console.error("Errore:", error);
+        alert("Errore di connessione al server");
+      }
+    }
+
+    async function eliminaCliente(id) {
+      if (!confirm('Sei sicuro di voler eliminare questo cliente?')) return;
+
+      try {
+        const response = await fetch(`/api/clienti/${id}`, { method: 'DELETE' });
+        const result = await response.json();
+        if (result.success) {
+          clienti = clienti.filter(c => c.id !== id);
+          mostraClienti();
+        } else {
+          alert(result.message || "Errore durante l'eliminazione");
+        }
+      } catch (error) {
+        console.error("Errore:", error);
+        alert("Errore di connessione al server");
+      }
+    }
+
+    async function modificaCampo(id, campo, valore) {
+      try {
+        const response = await fetch(`/api/clienti/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ [campo]: valore })
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+          alert("Errore nella modifica");
+        }
+      } catch (error) {
+        console.error("Errore:", error);
+      }
+    }
+
+    async function importaFile(files) {
+      if (!files || files.length === 0) return;
+
+      const file = files[0];
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const endpoint = file.name.endsWith('.csv') ? '/api/import' : '/api/import-xlsx';
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await res.json();
+        if (result.success) {
+          alert(`Importati ${result.count} clienti da ${file.name}`);
+          caricaClienti();
+        } else {
+          alert(result.message || "Errore durante l'importazione");
+        }
+      } catch (error) {
+        console.error("Errore:", error);
+        alert("Errore durante l'importazione");
+      }
+    }
+/*
+    // Ricarica la lista clienti ogni 5 secondi
+setInterval(() => {
+  caricaClienti();
+}, 10000);
+*/
+let direzioneOrdinamento = {};  // Tiene traccia dell'ordinamento asc/desc per ogni campo
+
+function ordinaPer(campo) {
+  direzioneOrdinamento[campo] = !direzioneOrdinamento[campo];
+
+  clienti.sort((a, b) => {
+    const valA = (a[campo] || '').toString().toLowerCase();
+    const valB = (b[campo] || '').toString().toLowerCase();
+
+    if (valA < valB) return direzioneOrdinamento[campo] ? -1 : 1;
+    if (valA > valB) return direzioneOrdinamento[campo] ? 1 : -1;
+    return 0;
+  });
+
+  mostraClienti(); // Ricarica la tabella ordinata
+}
+
+  </script>
 </body>
 </html>
